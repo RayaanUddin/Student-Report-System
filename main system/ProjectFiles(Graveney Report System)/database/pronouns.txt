@@ -1,0 +1,5 @@
+1:he/she
+2:his/her
+3:him/her
+
+if cap p then cap letter

@@ -1,0 +1,33 @@
+unit unit_createClass;
+
+interface
+
+uses
+  Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
+  Dialogs, StdCtrls, ExtCtrls, DB, ADODB;
+
+type
+  TfrmCreateClass = class(TForm)
+    lbledtFormName: TLabeledEdit;
+    ComboBox1: TComboBox;
+    btnCreateClass: TButton;
+    qryCreateClass: TADOQuery;
+  private
+    { Private declarations }
+  public
+    { Public declarations }
+  end;
+
+var
+  frmCreateClass: TfrmCreateClass;
+
+implementation
+
+{$R *.dfm}
+
+function ClassExists(formName:string):boolean;
+begin
+  frmcreateclass.qrycreateclass.SQL.Text := 'Select classID from class where name='+quotedStr(formName)+';'
+end;
+
+end.

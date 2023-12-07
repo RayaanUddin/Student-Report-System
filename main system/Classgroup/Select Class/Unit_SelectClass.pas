@@ -1,0 +1,188 @@
+unit Unit_SelectClass;
+
+interface
+
+uses
+  Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
+  Dialogs, unit_login, DB, ADODB, Grids, DBGrids, DBCtrls, StdCtrls, Mask, unit_createClass,
+  jpeg, ExtCtrls;
+
+type
+  TfrmSelectClass = class(TForm)
+    imgImgBackground: TImage;
+    lblSelectStudent: TLabel;
+  published
+    dbgrdUserClassData: TDBGrid;
+    dsUserClassData: TDataSource;
+    qryUserClassData: TADOQuery;
+    cboSelectYear: TComboBox;
+    btnUpdate: TButton;
+    qrySelectClass: TADOQuery;
+    edtName: TEdit;
+    chkFilterYear: TCheckBox;
+    cboUpdateYear: TComboBox;
+    btnDelete: TButton;
+    lstStudents: TListBox;
+    qryStudentsinClass: TADOQuery;
+    lblUpdateColumn: TLabel;
+    lblSelectRow: TLabel;
+    lblViewStudents: TLabel;
+    qryDelete: TADOQuery;
+    qrySelectStudent: TADOQuery;
+    qrySelectReports: TADOQuery;
+    procedure cboSelectYearChange(Sender: TObject);
+    procedure btnUpdateClick(Sender: TObject);
+    procedure dbgrdUserClassDataCellClick(Column: TColumn);
+    procedure chkFilterYearClick(Sender: TObject);
+    procedure btnDeleteClick(Sender: TObject);
+    procedure DeleteStudentReports(studentID:string);
+  end;
+
+var
+  frmSelectClass: TfrmSelectClass;
+  classIDSearched: string;
+implementation
+
+{$R *.dfm}
+
+//toggle filtering feature for the table displaying all classes created by user
+procedure TfrmSelectClass.cboSelectYearChange(Sender: TObject);
+begin
+  if (chkFilterYear.Checked)then
+  begin
+    qryUserClassData.SQL.Text := 'select ClassID, name, year from class where stfID='+inttostr(info.StaffID)+'and year='+inttostr(cboSelectYear.ItemIndex + 7)+';';
+    qryUserClassData.Open;
+  end;
+end;
+
+//updates the class
+procedure TfrmSelectClass.btnUpdateClick(Sender: TObject);
+var year:Integer;
+begin
+
+  if not(classIDSearched='')then
+  begin
+    year:=cboUpdateYear.ItemIndex+7;
+    //Class Name validated according to its length and year
+    if (frmcreateclass.verifyClassName(edtName.Text, year))then
+    begin
+      //checks if class exists or not
+      if not(frmCreateClass.ClassExists(edtName.Text, year))then
+      begin
+        //updates the class
+        qrySelectClass.SQL.Text:='update Class set name='+quotedStr(edtname.Text)+', year='+inttostr(year)+' where classID='+classIDSearched+';';
+        qrySelectClass.ExecSQL;
+        qryUserClassData.Refresh;
+        ShowMessage('class updated');
+      end
+      else
+        //informs user class already exists
+        ShowMessage('already exists...');
+    end
+    else
+      ShowMessage('Invalid class name');//invalid when doesnt follow graveney class rules
+  end
+  else
+    ShowMessage('cannot edit non-existing class');
+end;
+
+procedure TfrmSelectClass.dbgrdUserClassDataCellClick(Column: TColumn);
+var yearValue:string;
+  i:Integer;
+begin
+  lstStudents.Clear;
+  //stores and writes the values of the class selected in the table to the form
+  classIDSearched:=vartostr(qryUserClassData['classID']);
+  edtName.text:=vartostr(qryUserClassData['name']);
+  yearValue:=vartostr(qryUserClassData['year']);
+  if (yearValue='')then
+    cboUpdateYear.ItemIndex:=-1
+  else
+    cboUpdateYear.ItemIndex:=strtoint(yearValue)-7;
+  if (classIDSearched<>'')then
+  begin
+    //displays the students within the selected class
+    qryStudentsinClass.SQL.Text := 'select FirstName+'+QuotedStr(' ')+'+LastName as name from student where classID='+classIDSearched+';';
+    qryStudentsinClass.Open;
+    if (qryStudentsinClass.RecordCount>0)then //if 0, class has 0 students
+    begin
+      for i:=1 to qryStudentsinClass.RecordCount do
+      begin
+        lstStudents.Items.Add(qryStudentsinClass.fieldbyname('name').AsString);
+        qrystudentsinclass.Next;
+      end;
+    end;
+  end;
+
+end;
+
+//allows user to filter the classes in table by year
+procedure TfrmSelectClass.chkFilterYearClick(Sender: TObject);
+begin
+  if((chkFilterYear.Checked)and(cboSelectYear.ItemIndex >-1))then
+    qryUserClassData.SQL.Text := 'select ClassID, name, year from class where stfID='+inttostr(info.StaffID)+'and year='+inttostr(cboSelectYear.ItemIndex + 7)+';'
+  else
+    qryUserClassData.SQL.Text := 'select ClassID, name, year from class where stfID='+inttostr(info.StaffID)+';';
+  qryUserClassData.Open;
+end;
+
+//deletes students reports
+procedure TfrmSelectClass.DeleteStudentReports(studentID:string);
+var i,recCount:integer;
+begin
+  with frmSelectClass do
+  begin
+    qrySelectReports.SQL.text:='Select RptID FROM report where SdtID='+StudentID+';';
+    qrySelectReports.open;
+    recCount:=qrySelectReports.recordCount;
+    for i:=1 to recCount do
+    begin
+      qryDelete.SQL.text:='DELETE * FROM [report Comments] where RptID='+qrySelectReports.fieldbyname('RptID').asstring+';';
+      qryDelete.ExecSQL;
+      qrySelectReports.Next;
+    end;
+    qryDelete.SQL.text:='DELETE * FROM report where SdtID='+StudentID+';';
+    qryDelete.ExecSQL;
+  end;
+
+end;
+
+procedure DeleteClass(ClassID:string);
+var i:integer;
+begin
+  with frmSelectClass do
+  begin
+    qrySelectClass.SQL.text:='Select SdtID FROM student  where classID='+classID+';';
+    qrySelectClass.open;
+    for i:=1 to qrySelectClass.RecordCount do
+    begin
+      DeleteStudentReports(qrySelectClass.fieldbyname('SdtID').asstring);
+      qrySelectclass.Next;
+    end;
+    qrySelectClass.SQL.text:='DELETE * FROM student where classID='+classID+';';
+    qrySelectClass.ExecSQL;
+    qrySelectClass.SQL.text:='DELETE * FROM Class where classID='+classID+';';
+    qrySelectClass.ExecSQL;
+    qryUserClassData.Close;
+    qryUserClassData.Open;
+    lstStudents.Clear;
+  end;
+end;
+
+//deletes all students and their data within the selected class, when button clicked
+procedure TfrmSelectClass.btnDeleteClick(Sender: TObject);
+begin
+  case MessageDlg('Confirm Deleting Class '+vartostr(qryUserClassData['name'])+' of year '+vartostr(qryUserClassData['year'])+' with '+inttostr(lststudents.Items.Count)+' student(s)', mtConfirmation, [mbYes, mbNo], 0) of
+  mrYes:
+    begin
+      DeleteClass(classIDSearched);
+      Showmessage('deleted');
+    end;
+  mrNo:
+    begin
+      ShowMessage('cancelled');
+    end;
+  end;
+end;
+
+end.

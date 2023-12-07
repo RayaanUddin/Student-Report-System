@@ -1,0 +1,78 @@
+object frmCreateStudent: TfrmCreateStudent
+  Left = 475
+  Top = 521
+  BorderStyle = bsSingle
+  Caption = 'Create Student'
+  ClientHeight = 300
+  ClientWidth = 300
+  Color = clWhite
+  Font.Charset = DEFAULT_CHARSET
+  Font.Color = clWindowText
+  Font.Height = -11
+  Font.Name = 'Tahoma'
+  Font.Style = []
+  OldCreateOrder = False
+  PixelsPerInch = 96
+  TextHeight = 13
+  object lbledtStudent_FirstName: TLabeledEdit
+    Left = 56
+    Top = 24
+    Width = 121
+    Height = 21
+    EditLabel.Width = 51
+    EditLabel.Height = 13
+    EditLabel.Caption = 'First Name'
+    TabOrder = 0
+  end
+  object lbledtStudent_LastName: TLabeledEdit
+    Left = 56
+    Top = 64
+    Width = 121
+    Height = 21
+    EditLabel.Width = 50
+    EditLabel.Height = 13
+    EditLabel.Caption = 'Last Name'
+    TabOrder = 1
+  end
+  object cboSelectYear: TComboBox
+    Left = 56
+    Top = 112
+    Width = 145
+    Height = 21
+    ItemHeight = 13
+    TabOrder = 2
+    Text = 'Select Year..'
+    OnChange = cboSelectYearChange
+    Items.Strings = (
+      'Year 7'
+      'Year 8'
+      'Year 9'
+      'Year 10'
+      'Year 11'
+      'Year 12'
+      'Year 13')
+  end
+  object cboSelectClass: TComboBox
+    Left = 56
+    Top = 144
+    Width = 49
+    Height = 21
+    ItemHeight = 13
+    TabOrder = 3
+    Text = '-'
+  end
+  object btnCreateStudent: TButton
+    Left = 56
+    Top = 192
+    Width = 137
+    Height = 41
+    Caption = 'btnCreateStudent'
+    TabOrder = 4
+  end
+  object qryCreateStudent: TADOQuery
+    Connection = frmLogin.con_database
+    Parameters = <>
+    Left = 8
+    Top = 8
+  end
+end

@@ -1,0 +1,577 @@
+unit Unit_CreateReport;
+
+interface
+
+uses
+  Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
+  Dialogs, jpeg, ExtCtrls, StdCtrls, DB, ADODB, unit_login, unit_createStudent,
+  unit_signup, unit_ReportComment;
+
+type
+  Tquestion = record
+    number:integer;
+    text:string;
+  end;
+
+Type arrStudentRecord = array[1..6] of string;
+
+type
+  TStudentInfo = class
+  private
+    fName, lName, year, gender, id, cName:string;
+  public
+    procedure writeSelectedStudent(selectedIndex:integer;selectedcName, selectedYear:string); // writes the details of the selected student
+    procedure resetSelectedStudent; //clears the data of the selected student variable
+    constructor Create; overload;
+    function getData:arrStudentRecord;
+  end;
+
+type
+  Tquiz = class
+  private
+    question:Tquestion;
+    answerNumber:integer;
+  public
+    procedure WriteQuestion(Value:string;number:integer);
+    function getQuestionNumber:integer;
+    procedure displayAnswerChoice(a1,a2,a3:string);
+    procedure inputAnswer(Value:integer);
+    function outputAnswer:integer;
+    constructor Create; overload;
+  end;
+
+type
+  TfrmCreateReport = class(TForm)
+  published
+    qryCreateReport_WriteReport: TADOQuery;
+    ImgBackground: TImage;
+    Label1: TLabel;
+    cboSelectYear: TComboBox;
+    qryCreateReport_student: TADOQuery;
+    cboSelectClass: TComboBox;
+    cboSelectStudent: TComboBox;
+    btnPreviousQuestion: TButton;
+    qryCreateReport_select: TADOQuery;
+    lbledtSdtGrade: TLabeledEdit;
+    lbledtSdtAttendance: TLabeledEdit;
+    lbledtSdtPunctuality: TLabeledEdit;
+    lbledtSdtSubject: TLabeledEdit;
+    lblDisplayDate: TLabel;
+    tmrDisplayTime: TTimer;
+    lblDisplayTime: TLabel;
+    btnNextQuestion: TButton;
+    lblDisplayQuestion: TLabel;
+    pnlAnswerSection: TPanel;
+    rbAnswer1: TRadioButton;
+    rbAnswer2: TRadioButton;
+    rbAnswer3: TRadioButton;
+    procedure cboSelectYearChange(Sender: TObject);
+    procedure cboSelectClassChange(Sender: TObject);
+    procedure FormCreate(Sender: TObject);
+    procedure tmrDisplayTimeTimer(Sender: TObject);
+    procedure cboSelectStudentChange(Sender: TObject);
+    procedure btnQuestionClick(Sender: TObject);
+    procedure rbAnswerClick(Sender: TObject);
+  private
+    studentSelect:TStudentInfo;
+    reportCommentNumber:array[1..6] of integer; //used in writeReport procedure
+    procedure SelectAnAnswer(AnswerNum:integer;Bool:boolean);
+    procedure GenerateReport;
+  public
+    questionCount:integer; //used in main menu unit
+    ReportID:string;//used in writeReport procedure
+    behavior, effortinClass, homework, understandingOfContent, WorkingTarget, contribution:Tquiz; //used in main menu unit
+    procedure QuestionToDisplay(questionNum:integer); //used in main menu unit
+    function matchQuestiontoVar(questionNum:integer):Tquiz;
+    procedure SelectClass(cbo, frm:Tobject; cName, cYear:string); //used in select student
+  end;
+
+var
+  frmCreateReport: TfrmCreateReport;
+
+
+implementation
+
+{$R *.dfm}
+
+constructor Tquiz.create;
+begin
+  question.text := '';
+  question.number := 0;
+  answerNumber := 0;
+end;
+
+procedure Tquiz.WriteQuestion(Value:string;number:integer);
+begin
+  question.text := Value;
+  question.number := number;
+  frmCreateReport.lbldisplayquestion.Caption := inttostr(number) + ') ' + value;
+end;
+
+procedure Tquiz.displayAnswerChoice(a1,a2,a3:string);
+begin
+  frmCreateReport.rbAnswer1.Caption := a1;
+  frmCreateReport.rbAnswer2.Caption := a2;
+  frmCreateReport.rbAnswer3.Caption := a3;
+end;
+
+function Tquiz.getQuestionNumber:integer;
+begin
+  getQuestionNumber := question.number;
+end;
+
+procedure Tquiz.inputAnswer(value:integer);
+begin
+  answerNumber := value;
+end;
+
+function Tquiz.outputAnswer:integer;
+begin
+  outputAnswer := answerNumber;
+end;
+
+constructor TStudentInfo.create;
+begin
+  fName := '';
+  lName := '';
+  year := '';
+  cName := '';
+  gender := '';
+  id := '';
+end;
+
+procedure TStudentInfo.writeSelectedStudent(selectedIndex:integer;selectedcName, selectedYear :string);
+var i:integer;
+begin
+  with frmCreateReport.qrycreatereport_student do
+  begin
+    SQL.Text:='SELECT student.sdtID, student.FirstName, student.LastName, student.Gender, class.year, class.name FROM Class INNER JOIN Student'+
+    ' ON Class.classID = Student.classID WHERE class.name='+quotedStr(selectedcName)+
+    ' and class.stfID = '+inttostr(info.staffID)+' and class.year = '+frmcreatestudent.getClassYear(selectedYear)+' ORDER BY Student.firstname;';
+    open;
+    for i:=1 to selectedIndex do
+    begin
+      next;
+    end;
+    fName := fieldbyname('firstname').asstring;
+    lName := fieldbyname('lastname').asstring;
+    year := fieldbyname('year').asstring;
+    gender := fieldbyname('gender').asstring;
+    id := fieldbyname('sdtID').asstring;
+    cname := fieldbyname('name').asstring;
+  end;
+end;
+
+procedure TStudentInfo.resetSelectedStudent;
+begin
+  fName := '';
+  lName := '';
+  year := '';
+  cName := '';
+  gender := '';
+  id := '';
+end;
+
+function TstudentInfo.getData:arrStudentRecord;
+begin
+  getData[1] := id;
+  getData[2] := fName;
+  getData[3] := lName;
+  getData[4] := gender;
+  getData[5] := year;
+  getData[6] := cname;
+end;
+
+procedure Tfrmcreatereport.QuestionToDisplay(questionNum:integer);
+begin
+  if (questionNum = 1) then
+  begin
+    behavior.WriteQuestion('How is the students behavior been this term?',1);
+    behavior.displayAnswerChoice('Excellent','Okay(distracted time to time)','Poor(distraction to other students)');
+  end
+  else if (questionNum = 2) then
+  begin
+    effortInclass.WriteQuestion('Students effort in class is ...',2);
+    effortInclass.displayAnswerChoice('Excellent','Okay','Poor(e.g. does not get though tasks in class)');
+  end
+  else if (questionNum = 3) then
+  begin
+    homework.WriteQuestion('Students homeworks are...',3);
+    homework.displayAnswerChoice('Excellent','Okay(e.g. hands it in late or not to the best standards)','Poor(e.g. Never completes homeworks)');
+  end
+  else if (questionNum = 4) then
+  begin
+    understandingOfContent.WriteQuestion('How much of the content does the student understand? ',4);
+    understandingOfContent.displayAnswerChoice('All of it','Some/ Most of it','few of it');
+  end
+  else if (questionNum = 5) then
+  begin
+    WorkingTarget.WriteQuestion('The student is currently working...',5);
+    WorkingTarget.displayAnswerChoice('Above their expected grade of the term','At their expected grade of the term','Below their expected grade of the term');
+  end
+  else if (questionNum = 6) then
+  begin
+    contribution.WriteQuestion('Does the student contribute in class?',6);
+    contribution.displayAnswerChoice('All the time','Some/ Most of the times','Not at all');
+  end;
+end;
+
+function TfrmCreateReport.matchQuestiontoVar(questionNum:integer):Tquiz;
+begin
+  case questionNum of
+    1:matchQuestiontoVar := behavior;
+    2: matchQuestiontoVar := effortInclass;
+    3:matchQuestiontoVar := homework;
+    4: matchQuestiontoVar := understandingOfContent;
+    5:matchQuestiontoVar := WorkingTarget;
+    6: matchQuestiontoVar := contribution;
+  end;
+end;
+
+procedure TfrmCreateReport.cboSelectYearChange(Sender: TObject);
+begin
+  cboSelectStudent.Clear; //deletes any previous students in the combo box
+  cboSelectClass.Clear; //deletes any previous classes in the combo box
+  try
+    frmcreatestudent.selectClasses(frmCreateReport.cboSelectClass,frmCreateReport.cboselectYear); // finds the classes in relation to it
+  except //if user inputs invalid value, it resets the combo box
+    cboselectyear.Text:='Select Year...';
+    cboselectclass.Clear;
+  end;
+  //resets all values
+  cboselectstudent.clear;
+  cboselectstudent.itemindex:=-1;
+  cboselectstudent.text:='Select Student..';
+  cboselectclass.itemindex:=-1;
+  cboselectclass.text:='Class...';
+  studentSelect.resetSelectedStudent;
+end;
+
+procedure TfrmCreateReport.SelectClass(cbo, frm:Tobject; cName, cYear:string);
+var i:integer;
+begin
+  with TForm(frm) do
+  begin
+    TComboBox(cbo).Clear; //deletes any previous students in the combo box
+    qryCreateReport_student.SQL.Text:='SELECT student.FirstName, student.LastName FROM Class INNER JOIN Student'+
+    ' ON Class.classID = Student.classID WHERE class.name='+quotedStr(cName)+' and class.stfID = '+inttostr(info.staffID)+' and class.year = '+frmcreatestudent.getClassYear(cYear)+' ORDER BY Student.firstname;';
+    qrycreatereport_student.open;
+
+    //adds the students to combo box in relation to the class selected
+    for i:=1 to qryCreateReport_student.RecordCount do
+    begin
+      TComboBox(cbo).Items.Add(qryCreateReport_student.fieldbyname('firstname').AsString+' '+qryCreateReport_student.fieldbyname('lastname').AsString);
+      qryCreateReport_student.Next;
+    end;
+
+    TComboBox(cbo).itemindex:=-1;
+    if (qryCreateReport_student.RecordCount=0)then
+      TComboBox(cbo).text:='No Student(s)' //when no students are in that class
+    else
+      TComboBox(cbo).text:='Select Student..'; //when there are students in the class
+  end;
+  qryCreateReport_student.close;
+end;
+
+procedure TfrmCreateReport.cboSelectClassChange(Sender: TObject);
+begin
+  SelectClass(cboSelectStudent, frmCreateReport, cboSelectClass.Text, cboSelectYear.text);
+  studentSelect.resetSelectedStudent; //resets the values of student
+end;
+
+//writes the values of the student to the variable, frequently used in system.
+procedure TfrmCreateReport.cboSelectStudentChange(Sender: TObject);
+begin
+  studentSelect.writeSelectedStudent(cboSelectStudent.ItemIndex, cboSelectClass.Text, cboSelectYear.text);
+end;
+
+procedure TfrmCreateReport.FormCreate(Sender: TObject);
+var Date:TDateTime;
+begin
+  //Gets date, needed to sort reports created; a student will have multiple reports.
+  Date:=now;
+  lblDisplayDate.Caption:=DatetoStr(Date);
+
+  //Creates All objects needed
+  questionCount := 1;
+  Behavior := Tquiz.create;
+  effortInClass := Tquiz.create;
+  homework := Tquiz.create;
+  understandingOfContent := Tquiz.create;
+  workingTarget := Tquiz.create;
+  contribution := Tquiz.create;
+  studentSelect := TStudentInfo.Create;
+end;
+
+//displays time for the user, lets user manage their time when writing multiple reports
+procedure TfrmCreateReport.tmrDisplayTimeTimer(Sender: TObject);
+begin
+  lblDisplayTime.Caption:=TimetoStr(time);
+end;
+
+//checks which answer the user selected
+procedure TfrmCreateReport.selectAnAnswer(AnswerNum:integer;Bool:Boolean);
+begin
+  case AnswerNum of
+    1:rbAnswer1.Checked := Bool;
+    2:rbAnswer2.Checked := Bool;
+    3:rbAnswer3.Checked := Bool;
+  end;
+end;
+
+//validates form
+function isReportFrmValid:boolean;
+var isInvalid:boolean;
+begin
+  isInvalid := False;
+  with frmCreateReport do
+  begin
+    //makes sure the form is not empty
+    if ((cboSelectStudent.ItemIndex = -1) or (lbledtSdtSubject.Text = '') or (lbledtSdtGrade.Text = '') or (lbledtSdtAttendance.Text = '') or (lbledtSdtPunctuality.text = '') or (matchQuestiontoVar(questionCount).outputAnswer = 0)) then
+    begin
+      isInvalid := true;
+      showmessage('Complete the Form..');
+    end
+    else
+    begin
+      //Grade can only be one character (e.g. A or 9)
+      if (length(lbledtSdtGrade.Text)=1)then
+      begin
+        //makes sure it has a numerical or alphabetical value only
+        if not(frmsignup.stringisAlpha(lbledtSdtGrade.Text))then
+        begin
+          try
+            strtoint(lbledtSdtGrade.Text)
+          except
+            //informs user
+            showmessage('Grade must be Alphabetical or Numerical');
+            isInvalid := True;
+          end;
+        end
+      end
+      else
+      begin
+        // Allows grade A*
+        if not(lbledtSdtGrade.Text = 'A*')then
+        begin
+          //informs user
+          showmessage('Grade is a single character');
+          isInvalid := True;
+        end;
+      end;
+
+      //subject name is alhphabetical letters only
+      if not(frmsignup.stringisAlpha(lbledtSdtSubject.text))then
+      begin
+        //informs user
+        showmessage('Subject Name must be Alphabetical with no spaces');
+        isInvalid := True;
+      end
+      else
+      begin
+        try
+          //percentage is a number which is less than 100 and greater than 0
+          if ((strtoint(lbledtSdtAttendance.Text) > 100) or (strtoint(lbledtSdtAttendance.Text) < 0) or (strtoint(lbledtSdtPunctuality.text) > 100) or (strtoint(lbledtSdtPunctuality.text) < 0)) then
+          begin
+            //informs user
+            isInvalid := true;
+            showmessage('Puntuality or Attendance is invalid');
+          end;
+        except
+          //informs user
+          isInvalid := true;
+          showmessage('Puntuality or Attendance is invalid');
+        end;
+      end;
+    end;
+  end;
+  //outputs result, true is valid, false is invalid.
+  isReportFrmValid := not(isInvalid);
+end;
+
+procedure OpeningComment;
+begin
+  with frmCreateReport do
+  begin
+    if ((effortInClass.outputAnswer = 1) and (behavior.outputAnswer = 1)) then
+    begin
+      if (understandingOfContent.outputAnswer = 3) then
+        reportCommentNumber[1] := 5
+      else if (homework.outputAnswer = 1) then
+        reportCommentNumber[1] := 1
+      else if (understandingOfContent.outputAnswer = 1) then
+        reportCommentNumber[1] := 2
+      else
+        reportCommentNumber[1] := 3;
+    end
+    else if (understandingOfContent.outputAnswer = 3) then
+    begin
+      if (workingTarget.outputAnswer = 3) then
+        reportCommentNumber[1] := 6
+      else
+        reportCommentNumber[1] := 7;
+    end
+    else
+      reportCommentNumber[1] := 4;
+  end;
+end;
+
+
+
+procedure ClosingComment; // 6 Does not always generate
+begin
+  with frmCreateReport do
+  begin
+    if (workingTarget.outputAnswer = 3) then
+      reportCommentNumber[6] := 26
+    else
+    begin
+      if (behavior.outputAnswer = 1) then
+        reportCommentNumber[6] := 24
+      else
+        reportCommentNumber[6] := 25;
+    end;
+  end;
+end;
+
+procedure strengthsAndWeakness; // weak 5 strong 4  Does not always generate
+begin
+  with frmCreateReport do
+  begin
+    if (understandingOfContent.outputAnswer = 1)then
+      reportCommentNumber[4] := 19
+    else
+    begin
+      if (effortInClass.outputAnswer = 1)then
+        reportCommentNumber[4] := 20;
+    end;
+    if (workingTarget.outputAnswer = 3) then
+      reportCommentNumber[5] := 23
+    else
+    begin
+      if (homework.outputAnswer > 1) then
+        reportCommentNumber[5] := 21
+      else if (contribution.outputAnswer = 3) then
+        reportCommentNumber[5] := 22;
+    end;
+  end;
+end;
+
+procedure progress;
+begin
+  with frmCreateReport do
+  begin
+    if (workingTarget.outputAnswer = 3) then
+    begin
+      if (behavior.outputAnswer > 1) then
+        reportCommentNumber[3] := 16
+      else if (understandingOfContent.outputAnswer = 3)then
+        reportCommentNumber[3] := 17
+      else
+        reportCommentNumber[3] := 18;
+    end
+    else
+    begin
+      if (homework.outputAnswer = 1) then
+        reportCommentNumber[3] := 11
+      else if (effortinclass.outputAnswer = 1) then
+        reportCommentNumber[3] := 12
+      else if (homework.outputAnswer > 1) then
+        reportCommentNumber[3] := 14
+      else if (understandingOfContent.outputAnswer > 1) then
+        reportCommentNumber[3] := 15
+      else
+        reportCommentNumber[3] := 13;
+    end;
+  end;
+end;
+
+procedure writeReport(attendance, grade, punctuality, subject, date:string);
+var i:integer;
+begin
+  with frmCreateReport do
+  begin
+    qryCreateReport_writereport.SQL.Text := 'insert into Report(SdtID,Attendance,Grade,Punctuality,Subject,dateCreated) '+
+    'values ('+studentSelect.id+','+attendance+','+ quotedStr(grade)+','+ punctuality+','+ quotedStr(subject)+','+ quotedStr(date)+');';
+    qryCreateReport_writereport.ExecSQL;
+    qryCreateReport_select.SQL.Text := 'select RptID from Report where sdtID = '+studentSelect.id+' order by RptID Desc;';
+    qryCreateReport_select.Open;
+    ReportID := qryCreateReport_select.fieldbyname('RptID').AsString;
+    qryCreateReport_select.close;
+    for i:=1 to 6 do
+    begin
+      if (reportCommentNumber[i] <> 0)then
+      begin
+        qryCreateReport_writereport.SQL.Text := 'insert into [Report Comments](RptID, CmbID) values('+reportID+','+inttostr(reportCommentNumber[i])+');';
+        qryCreateReport_writereport.ExecSQL;
+      end;
+    end;
+  end;
+end;
+
+procedure TfrmCreateReport.GenerateReport;
+begin
+  if (isReportFrmValid)then
+  begin
+    reportCommentNumber[2] := behavior.outputAnswer + 7;
+    OpeningComment;
+    ClosingComment;
+    strengthsAndWeakness;
+    progress;
+    showmessage('Report Generated');
+    writeReport(lbledtsdtattendance.Text, lbledtsdtgrade.Text, lbledtsdtpunctuality.Text, lbledtsdtsubject.Text, lblDisplayDate.Caption);
+    frmReportComment.displayReport(reportID);
+    frmReportComment.show;
+    frmCreateReport.Close;
+  end;
+end;
+
+procedure TfrmCreateReport.btnQuestionClick(Sender: TObject);
+begin
+  if not(Tbutton(sender).Caption = 'Generate Report')then
+  begin
+    if (Tbutton(sender).Name = 'btnNextQuestion')then
+    begin
+      if (matchQuestiontoVar(questionCount).outputAnswer = 0)then
+        showmessage('Complete Question First')
+      else
+      begin
+        selectAnAnswer(matchQuestiontoVar(questionCount).outputAnswer,false);
+        questionCount := questionCount + 1;
+        questionToDisplay(questionCount);
+      end;
+    end
+    else
+    begin
+      selectAnAnswer(matchQuestiontoVar(questionCount).outputAnswer,false);
+      questionCount := questionCount - 1;
+      questionToDisplay(questionCount);
+    end;
+    if (matchQuestiontoVar(questionCount).outputAnswer <> 0)then
+      selectAnAnswer(matchQuestiontoVar(questionCount).outputAnswer,true);
+    if (questionCount > 1)then
+    begin
+      btnPreviousQuestion.Visible := true;
+      if (questionCount = 6)then
+        btnNextquestion.Caption := 'Generate Report'
+      else
+      begin
+        btnNextquestion.Caption := 'Next Question';
+      end
+    end
+    else
+      btnPreviousQuestion.Visible := false;
+  end
+  else
+  begin
+    GenerateReport;
+  end;
+end;
+
+procedure TfrmCreateReport.rbAnswerClick(Sender: TObject);
+var Index:integer;
+begin
+  index := strtoint(TRadioButton(sender).Name[9]);
+  matchQuestiontoVar(questionCount).inputAnswer(index);
+end;
+end.

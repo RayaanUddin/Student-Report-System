@@ -1,0 +1,176 @@
+unit unit_menu;
+
+interface
+
+uses
+  Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
+  Dialogs, StdCtrls, jpeg, ADODB, ExtCtrls;
+
+type YearArr = array[1..7] of string;
+
+type
+  TfrmMainMenu = class(TForm)
+  published
+    lblProfileName: TLabel;
+    ImgMainMenu: TImage;
+    btnCreateStudent: TLabel;
+    btnSelectStudent: TLabel;
+    btnCreateClass: TLabel;
+    btnSelectClass: TLabel;
+    btnCreateReport: TLabel;
+    imgSettings: TImage;
+    procedure FormClose(Sender: TObject; var Action: TCloseAction);
+    procedure btnCreateClassClick(Sender: TObject);
+    procedure btnSelectClassClick(Sender: TObject);
+    procedure btnCreateStudentClick(Sender: TObject);
+    procedure btnMouseEnter(Sender: TObject);
+    procedure btnMouseLeave(Sender: TObject);
+    procedure btnSelectStudentClick(Sender: TObject);
+    procedure btnCreateReportClick(Sender: TObject);
+    procedure imgSettingsClick(Sender: TObject);
+  public
+    function selectYear(qry,frm:Tobject):yearArr; //used to display all years from database in create student and create report
+
+end;
+
+var
+  frmMainMenu: TfrmMainMenu;
+
+implementation
+
+uses unit_login, unit_createClass, unit_createStudent,
+    Unit_UpdateSetting, unit_CreateReport, unit_selectclass, Unit_SelectStudent;
+
+{$R *.dfm}
+
+function Tfrmmainmenu.selectYear(qry, frm:Tobject):yearArr;
+var i:integer;
+  arr:yearArr;
+begin
+  with TForm(frm) do
+  begin
+    TADOQuery(qry).SQL.Text:='select year from class where StfID = '+inttostr(info.staffID)+' group by year order by year;';
+    TADOQuery(qry).Open;
+    for i:=1 to TADOQuery(qry).recordcount do
+    begin
+      arr[i]:= 'Year '+ TADOQuery(qry).fieldbyname('year').AsString;
+      TADOQuery(qry).Next;
+    end;
+    TADOQuery(qry).Close;
+    selectyear:=arr;
+  end;
+end;
+
+procedure TfrmMainMenu.FormClose(Sender: TObject;
+  var Action: TCloseAction);
+begin
+  frmlogin.close;
+end;
+
+//Changes Color, lets user know that its a button
+procedure TfrmMainMenu.btnMouseEnter(Sender: TObject);
+begin
+  TLabel(Sender).Font.Color := RGB(119,143,143);
+end;
+
+procedure TfrmMainMenu.btnMouseLeave(Sender: TObject);
+var l:Boolean;
+begin
+    TLabel(Sender).Font.Color := clWhite;
+end;
+
+//Create student button - label component used as a button
+procedure TfrmMainMenu.btnCreateStudentClick(Sender: TObject);
+var i:Integer;
+  arr:yearArr;
+begin
+  arr := selectyear(frmCreateStudent.qryCreateStudent, frmcreatestudent);
+  frmcreatestudent.cboSelectyear.Clear;
+  for i:=1 to length(arr) do
+  begin
+    if (arr[i]='') then
+      break
+    else
+      frmCreateStudent.cboSelectYear.items.Add(arr[i]);
+  end;
+  frmCreateStudent.ShowModal;
+end;
+
+
+//Select student button - label component used as a button
+procedure TfrmMainMenu.btnSelectStudentClick(Sender: TObject);
+var i:integer;
+  arr:yearArr;
+begin
+  FreeAndNil(frmselectstudent);
+  frmSelectStudent := TfrmSelectStudent.Create(frmselectstudent);
+  arr := selectyear(frmSelectStudent.qrySelectStudent, frmSelectStudent);
+  frmSelectStudent.cboSelectyear.Clear;
+  for i:=1 to length(arr) do
+  begin
+    if (arr[i]='') then
+      break
+    else
+    begin
+      frmSelectStudent.cboSelectYear.items.Add(arr[i]);
+      frmSelectStudent.cboChangeYear.items.Add(arr[i]);
+    end;
+  end;
+
+  //open form
+  frmSelectStudent.ShowModal;
+end;
+
+//Create Class button - label component used as a button
+procedure TfrmMainMenu.btnCreateClassClick(Sender: TObject);
+begin
+  //open form
+  frmCreateClass.ShowModal;
+end;
+
+//Select Class button - label component used as a button
+procedure TfrmMainMenu.btnSelectClassClick(Sender: TObject);
+begin
+  //open form
+  frmSelectClass.qryUserClassData.SQL.Text := 'select ClassID, name, year from class where stfID='+inttostr(info.StaffID)+';';
+  frmSelectClass.qryUserClassData.Open;
+  frmSelectClass.ShowModal;
+end;
+
+//Create Report button - label component used as a button
+procedure TfrmMainMenu.btnCreateReportClick(Sender: TObject);
+var i:Integer;
+  arr:yearArr;
+begin
+  FreeAndNil(frmCreateReport);
+  frmCreateReport := TfrmCreateReport.Create(frmCreateReport);
+  with frmCreateReport do
+  begin
+    arr := selectyear(qryCreateReport_Select, frmcreatereport);
+    cboSelectyear.Clear;
+    for i:=1 to length(arr) do
+    begin
+      if (arr[i]='') then
+        break
+      else
+        cboSelectYear.items.Add(arr[i]);
+    end;
+    questionToDisplay(questionCount);
+    ShowModal;
+  end;
+end;
+
+//update user details button - label component used as a button
+procedure TfrmMainMenu.imgSettingsClick(Sender: TObject);
+begin
+  //open form
+  with frmUpdateSetting do
+  begin
+    edtfName.Text:= info.FirstName;
+    edtlName.Text:= info.LastName;
+    edtEmail.Text:= info.Email;
+    ShowModal;
+  end;
+end;
+
+end.

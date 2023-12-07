@@ -1,0 +1,44 @@
+unit unit_createStudent;
+
+interface
+
+uses
+  Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
+  Dialogs, DB, ADODB, StdCtrls, ExtCtrls, unit_login;
+
+type
+  TfrmCreateStudent = class(TForm)
+    lbledtStudent_FirstName: TLabeledEdit;
+    lbledtStudent_LastName: TLabeledEdit;
+    cboSelectYear: TComboBox;
+    cboSelectClass: TComboBox;
+    qryCreateStudent: TADOQuery;
+    btnCreateStudent: TButton;
+    procedure cboSelectYearChange(Sender: TObject);
+  private
+    { Private declarations }
+  public
+    { Public declarations }
+  end;
+
+var
+  frmCreateStudent: TfrmCreateStudent;
+
+implementation
+
+{$R *.dfm}
+
+procedure TfrmCreateStudent.cboSelectYearChange(Sender: TObject);
+var i:Integer;
+begin
+  qrycreatestudent.SQL.Text := 'Select classID,name from class where year='+inttostr(cboSelectYear.ItemIndex+7)+' and stfID='+inttostr(info.staffID)+';';
+  cboSelectClass.Clear;
+  qryCreateStudent.Open;
+  for i:=1 to qrycreatestudent.recordcount do
+  begin
+    cboSelectClass.Items.Add(qryCreateStudent.fieldbyname('name').AsString);
+    qryCreateStudent.Next;
+  end;
+end;
+
+end.
