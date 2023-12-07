@@ -2,7 +2,7 @@
 This is a report system to be used for schools. It autogenerates the teacher comment on student. Its a complete school project of 1-2 years ago, written in Pascal (Delphi IDE).
 There is a report showing each part of creating this, and why it was created. Feel free to read below (or download PDF Version, Much easier to read and navigate):
 
-[button url="http://www.google.com"]
+Download PDF Report: https://docdro.id/U86VbGU
 
 ## Contents
 
